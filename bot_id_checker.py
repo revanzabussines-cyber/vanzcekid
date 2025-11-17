@@ -1,13 +1,23 @@
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 import os
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    CallbackQueryHandler,
+    ContextTypes,
+    filters,
+)
 
-TOKEN = os.getenv("BOT_TOKEN")
+TOKEN = os.getenv("BOT_TOKEN")  # set di Railway
 
-def start(update, context):
-    user = update.message.from_user
+# ========== RESPON WELCOME / INFO ID ==========
+async def send_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    chat = update.effective_chat
+
     user_id = user.id
-    chat_id = update.message.chat.id
+    chat_id = chat.id
 
     keyboard = [
         [InlineKeyboardButton("🔍 Cek ID", callback_data="cek_id")],
@@ -15,48 +25,66 @@ def start(update, context):
             InlineKeyboardButton("💬 Channel", url="https://t.me/VanzDisscusion"),
             InlineKeyboardButton("👥 Group", url="https://t.me/VANZSHOPGROUP"),
         ],
-        [InlineKeyboardButton("👨‍💻 Admin", url="https://t.me/VanzzSkyyID")]
+        [InlineKeyboardButton("👨‍💻 Admin", url="https://t.me/VanzzSkyyID")],
     ]
 
     text = (
-        f"👋 Welcome!\n\n"
+        f"👋 **Welcome!**\n\n"
         f"👤 User ID: `{user_id}`\n"
         f"💬 Chat ID: `{chat_id}`\n\n"
-        f"🤖 Bot by @VanzzSkyyID\n"
-        f"🛒 Cheapest All Apps: @VanzShopBot"
+        f"🤖 Bot by **@VanzzSkyyID**\n"
+        f"🛒 Cheapest All Apps: **@VanzShopBot**"
     )
 
-    update.message.reply_text(text, parse_mode="Markdown",
-                              reply_markup=InlineKeyboardMarkup(keyboard))
+    # kadang update.message bisa None (misal dari callback), jadi dicek dulu
+    if update.message:
+        await update.message.reply_markdown(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
 
 
-def button(update, context):
+# ========== CALLBACK TOMBOL ==========
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+
     user = query.from_user
     user_id = user.id
     chat_id = query.message.chat.id
 
     text = (
-        f"🔍 Cek ID!\n\n"
+        f"🔍 **Cek ID Berhasil!**\n\n"
         f"👤 User ID: `{user_id}`\n"
         f"💬 Chat ID: `{chat_id}`\n\n"
         f"🤖 Bot by @VanzzSkyyID\n"
         f"🛒 Cheapest All Apps: @VanzShopBot"
     )
 
-    query.edit_message_text(text, parse_mode="Markdown")
+    await query.edit_message_text(
+        text=text,
+        parse_mode="Markdown"
+    )
 
 
+# ========== MAIN ==========
 def main():
-    updater = Updater(TOKEN)
-    dp = updater.dispatcher
+    if not TOKEN:
+        raise RuntimeError("ENV BOT_TOKEN belum di-set di Railway!")
 
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.text, start))
-    dp.add_handler(telegram.ext.CallbackQueryHandler(button))
+    app = ApplicationBuilder().token(TOKEN).build()
 
-    updater.start_polling()
-    updater.idle()
+    # /start → kirim ID + tombol
+    app.add_handler(CommandHandler("start", send_welcome))
+
+    # chat teks apa pun (non-command) → kirim ID + tombol juga
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, send_welcome))
+
+    # handler buat tombol inline
+    app.add_handler(CallbackQueryHandler(button_callback))
+
+    print("BOT RUNNING...")
+    app.run_polling()
 
 
 if __name__ == "__main__":
