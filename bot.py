@@ -1,38 +1,43 @@
 import os
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    CallbackQueryHandler,
-    ContextTypes,
-    filters,
+import asyncio
+
+from aiogram import Bot, Dispatcher, F
+from aiogram.types import (
+    Message,
+    CallbackQuery,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
 )
+from aiogram.filters import CommandStart
 
 TOKEN = os.getenv("BOT_TOKEN")
 
+dp = Dispatcher()
 
-# ========================
-# START COMMAND
-# ========================
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    chat = update.effective_chat
 
-    name = user.first_name
-    user_id = user.id
-    chat_id = chat.id
+def get_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔍 Cek ID", callback_data="cek_id")],
+            [
+                InlineKeyboardButton(
+                    text="💬 Channel", url="https://t.me/VanzDisscusion"
+                ),
+                InlineKeyboardButton(
+                    text="👥 Group", url="https://t.me/VANZSHOPGROUP"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="👨‍💻 Admin", url="https://t.me/VanzzSkyyID"
+                )
+            ],
+        ]
+    )
 
-    keyboard = [
-        [InlineKeyboardButton("🔍 Cek ID", callback_data="cek_id")],
-        [
-            InlineKeyboardButton("💬 Channel", url="https://t.me/VanzDisscusion"),
-            InlineKeyboardButton("👥 Group", url="https://t.me/VANZSHOPGROUP"),
-        ],
-        [InlineKeyboardButton("👨‍💻 Admin", url="https://t.me/VanzzSkyyID")],
-    ]
 
-    text = (
+def format_main_text(name: str, user_id: int, chat_id: int) -> str:
+    return (
         f"👋 Halo **{name}**!\n\n"
         f"👤 User ID: `{user_id}`\n"
         f"💬 Chat ID: `{chat_id}`\n\n"
@@ -40,26 +45,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🛒 Cheapest All Apps → **@VanzShopBot**"
     )
 
-    if update.message:
-        await update.message.reply_markdown(
-            text,
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
 
-
-# ========================
-# CALLBACK BUTTON
-# ========================
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    user = query.from_user
-    name = user.first_name
-    user_id = user.id
-    chat_id = query.message.chat.id
-
-    text = (
+def format_cekid_text(name: str, user_id: int, chat_id: int) -> str:
+    return (
         f"🔍 **ID Detail untuk {name}:**\n\n"
         f"👤 User ID: `{user_id}`\n"
         f"💬 Chat ID: `{chat_id}`\n\n"
@@ -67,37 +55,59 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🛒 Cheapest All Apps → @VanzShopBot"
     )
 
-    await query.edit_message_text(text, parse_mode="Markdown")
+
+# ========== /start ==========
+@dp.message(CommandStart())
+async def cmd_start(message: Message):
+    user = message.from_user
+    chat = message.chat
+
+    name = user.first_name or "User"
+    user_id = user.id
+    chat_id = chat.id
+
+    text = format_main_text(name, user_id, chat_id)
+    await message.answer(
+        text,
+        reply_markup=get_keyboard(),
+        parse_mode="Markdown",
+    )
 
 
-# ========================
-# AUTO RESPON CHAT APA SAJA
-# ========================
-async def auto_show_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await start(update, context)
+# ========== chat apapun (teks) ==========
+@dp.message(F.text & ~F.via_bot)
+async def any_text(message: Message):
+    # sama aja kayak /start → auto tampil info ID
+    await cmd_start(message)
 
 
-# ========================
-# MAIN APP
-# ========================
-def main():
+# ========== tombol "Cek ID" ==========
+@dp.callback_query(F.data == "cek_id")
+async def cb_cek_id(callback_query: CallbackQuery):
+    user = callback_query.from_user
+    chat = callback_query.message.chat
+
+    name = user.first_name or "User"
+    user_id = user.id
+    chat_id = chat.id
+
+    text = format_cekid_text(name, user_id, chat_id)
+
+    await callback_query.message.edit_text(
+        text,
+        parse_mode="Markdown",
+        reply_markup=get_keyboard(),
+    )
+    await callback_query.answer()  # tutup loading di Telegram
+
+
+async def main():
     if not TOKEN:
-        raise RuntimeError("BOT_TOKEN belum di-set di Railway")
+        raise RuntimeError("ENV BOT_TOKEN belum di-set!")
 
-    app = ApplicationBuilder().token(TOKEN).build()
-
-    # command
-    app.add_handler(CommandHandler("start", start))
-
-    # tombol callback
-    app.add_handler(CallbackQueryHandler(button))
-
-    # chat apa pun → tampilkan info
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, auto_show_id))
-
-    print("BOT RUNNING...")
-    app.run_polling()
+    bot = Bot(TOKEN)
+    await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
