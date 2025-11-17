@@ -1,18 +1,29 @@
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram import (
+    Update,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton
+)
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    CallbackQueryHandler,
+    ContextTypes,
+    filters
+)
+
 
 # ==============================
-#  HANDLERS
+#  RESPON WELCOME + ID
 # ==============================
-
 async def send_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
-
+    
     user_id = user.id
     chat_id = chat.id
 
-    # Tombol
+    # tombol
     keyboard = [
         [InlineKeyboardButton("🔍 Cek ID", callback_data="cek_id")],
         [
@@ -22,20 +33,24 @@ async def send_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("👨‍💻 Admin", url="https://t.me/VanzzSkyyID")]
     ]
 
-    text = (
+    teks = (
         f"👋 **Welcome!**\n\n"
-        f"**ID kamu:** `{user_id}`\n"
-        f"**Chat ID:** `{chat_id}`\n\n"
+        f"👤 User ID: `{user_id}`\n"
+        f"💬 Chat ID: `{chat_id}`\n\n"
         f"🤖 Bot by **@VanzzSkyyID**\n"
         f"🛒 Cheapest All Apps: **@VanzShopBot**"
     )
 
     await update.message.reply_markdown(
-        text,
+        teks,
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-async def callback_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+# ==============================
+#  TOMBOL CALLBACK
+# ==============================
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
@@ -43,7 +58,7 @@ async def callback_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = user.id
     chat_id = query.message.chat.id
 
-    text = (
+    teks = (
         f"🔍 **Cek ID Berhasil!**\n\n"
         f"👤 User ID: `{user_id}`\n"
         f"💬 Chat ID: `{chat_id}`\n\n"
@@ -52,7 +67,7 @@ async def callback_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     await query.edit_message_text(
-        text=text,
+        text=teks,
         parse_mode="Markdown"
     )
 
@@ -60,22 +75,21 @@ async def callback_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==============================
 #  MAIN
 # ==============================
-
-async def main():
+def main():
     app = ApplicationBuilder().token("YOUR_BOT_TOKEN").build()
 
     # /start
     app.add_handler(CommandHandler("start", send_welcome))
 
-    # kalau user chat apa saja → tetap kirim info ID
+    # chat apapun tetap munculin ID
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, send_welcome))
 
-    # button callback
-    app.add_handler(MessageHandler(filters.COMMAND, send_welcome))
-    app.add_handler(telegram.ext.CallbackQueryHandler(callback_button))
+    # callback tombol (INI PENTING!)
+    app.add_handler(CallbackQueryHandler(button_callback))
 
-    print("BOT READY...")
-    await app.run_polling()
+    print("BOT RUNNING...")
+    app.run_polling()
 
-import asyncio
-asyncio.run(main())
+
+if __name__ == "__main__":
+    main()
