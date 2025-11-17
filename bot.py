@@ -15,6 +15,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 dp = Dispatcher()
 
 
+# ====================== KEYBOARD ======================
 def get_keyboard():
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -36,11 +37,18 @@ def get_keyboard():
     )
 
 
+# ====================== TEXT TEMPLATES ======================
 def format_main_text(name: str, user_id: int, chat_id: int) -> str:
     return (
         f"👋 Halo **{name}**!\n\n"
-        f"👤 User ID: `{user_id}`\n"
-        f"💬 Chat ID: `{chat_id}`\n\n"
+        f"✨ Selamat datang di *VanzShop ID Checker*\n\n"
+        f"Bot ini memudahkan kamu untuk:\n"
+        f"• 👤 Melihat User ID\n"
+        f"• 💬 Mengetahui Chat / Group ID\n"
+        f"• ↩️ Melihat ID dari pesan yang kamu reply\n\n"
+        f"📌 Informasi kamu:\n"
+        f"• 👤 User ID: `{user_id}`\n"
+        f"• 💬 Chat ID: `{chat_id}`\n\n"
         f"🤖 Bot by **@VanzzSkyyID**\n"
         f"🛒 Cheapest All Apps → **@VanzShopBot**"
     )
@@ -48,17 +56,18 @@ def format_main_text(name: str, user_id: int, chat_id: int) -> str:
 
 def format_cekid_text(name: str, user_id: int, chat_id: int) -> str:
     return (
-        f"🔍 **ID Detail untuk {name}:**\n\n"
-        f"👤 User ID: `{user_id}`\n"
-        f"💬 Chat ID: `{chat_id}`\n\n"
+        f"🔍 **Cek ID untuk {name}:**\n\n"
+        f"• 👤 User ID: `{user_id}`\n"
+        f"• 💬 Chat ID: `{chat_id}`\n\n"
         f"🤖 Bot by @VanzzSkyyID\n"
         f"🛒 Cheapest All Apps → @VanzShopBot"
     )
 
 
-# ========== /start ==========
+# ====================== HANDLERS ======================
+
 @dp.message(CommandStart())
-async def cmd_start(message: Message):
+async def start(message: Message):
     user = message.from_user
     chat = message.chat
 
@@ -66,24 +75,20 @@ async def cmd_start(message: Message):
     user_id = user.id
     chat_id = chat.id
 
-    text = format_main_text(name, user_id, chat_id)
     await message.answer(
-        text,
+        format_main_text(name, user_id, chat_id),
         reply_markup=get_keyboard(),
         parse_mode="Markdown",
     )
 
 
-# ========== chat apapun (teks) ==========
 @dp.message(F.text & ~F.via_bot)
-async def any_text(message: Message):
-    # sama aja kayak /start → auto tampil info ID
-    await cmd_start(message)
+async def auto_show(message: Message):
+    await start(message)
 
 
-# ========== tombol "Cek ID" ==========
 @dp.callback_query(F.data == "cek_id")
-async def cb_cek_id(callback_query: CallbackQuery):
+async def callback_cekid(callback_query: CallbackQuery):
     user = callback_query.from_user
     chat = callback_query.message.chat
 
@@ -91,19 +96,19 @@ async def cb_cek_id(callback_query: CallbackQuery):
     user_id = user.id
     chat_id = chat.id
 
-    text = format_cekid_text(name, user_id, chat_id)
-
     await callback_query.message.edit_text(
-        text,
+        format_cekid_text(name, user_id, chat_id),
         parse_mode="Markdown",
         reply_markup=get_keyboard(),
     )
-    await callback_query.answer()  # tutup loading di Telegram
+
+    await callback_query.answer()
 
 
+# ====================== MAIN ======================
 async def main():
     if not TOKEN:
-        raise RuntimeError("ENV BOT_TOKEN belum di-set!")
+        raise RuntimeError("ENV BOT_TOKEN belum di-set di Railway!")
 
     bot = Bot(TOKEN)
     await dp.start_polling(bot)
