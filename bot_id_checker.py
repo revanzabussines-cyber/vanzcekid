@@ -1,125 +1,81 @@
-import os
-from telegram import Update
-from telegram.ext import (
-    Updater,
-    CommandHandler,
-    CallbackContext,
-    MessageHandler,
-    Filters,
-)
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
-# ==========================
-# CONFIG
-# ==========================
+# ==============================
+#  HANDLERS
+# ==============================
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN is missing. Please set it in your environment variables.")
-
-OWNER_USERNAME = "@VanzzSkyyID"
-SHOP_BOT = "@VanzShopBot"
-
-CREDIT_TEXT = f"\n\n———\n🤖 Bot by {OWNER_USERNAME}\n🛒 Cheapest All Apps: {SHOP_BOT}"
-
-
-# ==========================
-# COMMAND HANDLERS
-# ==========================
-
-def start(update: Update, context: CallbackContext):
-    user = update.effective_user
-
-    text = (
-        "👋 Welcome!\n\n"
-        "This bot helps you **check Telegram IDs** easily.\n\n"
-        "✅ Features:\n"
-        "• Get **your own user ID**\n"
-        "• Get **chat / group / channel ID**\n"
-        "• Get **ID of someone you reply to**\n\n"
-        "🔧 How to use:\n"
-        "• Send /id in private chat\n"
-        "• Use /id in a group to get the group ID\n"
-        "• Reply to someone's message and send /id to get their ID\n"
-        f"{CREDIT_TEXT}"
-    )
-
-    update.message.reply_text(text, parse_mode="Markdown")
-
-
-def id_command(update: Update, context: CallbackContext):
-    message = update.message
+async def send_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
 
-    lines = []
+    user_id = user.id
+    chat_id = chat.id
 
-    # Your info
-    lines.append("🧾 *Your info*")
-    lines.append(f"• User ID: `{user.id}`")
-    if user.username:
-        lines.append(f"• Username: @{user.username}")
-    if user.full_name:
-        lines.append(f"• Name: {user.full_name}")
+    # Tombol
+    keyboard = [
+        [InlineKeyboardButton("🔍 Cek ID", callback_data="cek_id")],
+        [
+            InlineKeyboardButton("💬 Channel", url="https://t.me/VanzDisscusion"),
+            InlineKeyboardButton("👥 Group", url="https://t.me/VANZSHOPGROUP"),
+        ],
+        [InlineKeyboardButton("👨‍💻 Admin", url="https://t.me/VanzzSkyyID")]
+    ]
 
-    # Chat info
-    lines.append("\n💬 *Chat info*")
-    lines.append(f"• Chat ID: `{chat.id}`")
-    lines.append(f"• Chat type: `{chat.type}`")
-    if chat.title:
-        lines.append(f"• Chat title: {chat.title}")
+    text = (
+        f"👋 **Welcome!**\n\n"
+        f"**ID kamu:** `{user_id}`\n"
+        f"**Chat ID:** `{chat_id}`\n\n"
+        f"🤖 Bot by **@VanzzSkyyID**\n"
+        f"🛒 Cheapest All Apps: **@VanzShopBot**"
+    )
 
-    # If reply to someone → show their ID
-    if message.reply_to_message:
-        replied_user = message.reply_to_message.from_user
-        lines.append("\n👥 *Replied user*")
-        lines.append(f"• User ID: `{replied_user.id}`")
-        if replied_user.username:
-            lines.append(f"• Username: @{replied_user.username}")
-        if replied_user.full_name:
-            lines.append(f"• Name: {replied_user.full_name}")
+    await update.message.reply_markdown(
+        text,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
-    # If forwarded message → original sender
-    if message.forward_from:
-        fwd_user = message.forward_from
-        lines.append("\n📨 *Forwarded from*")
-        lines.append(f"• User ID: `{fwd_user.id}`")
-        if fwd_user.username:
-            lines.append(f"• Username: @{fwd_user.username}")
-        if fwd_user.full_name:
-            lines.append(f"• Name: {fwd_user.full_name}")
+async def callback_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
 
-    # Join & send
-    text = "\n".join(lines) + CREDIT_TEXT
+    user = query.from_user
+    user_id = user.id
+    chat_id = query.message.chat.id
 
-    message.reply_text(text, parse_mode="Markdown")
+    text = (
+        f"🔍 **Cek ID Berhasil!**\n\n"
+        f"👤 User ID: `{user_id}`\n"
+        f"💬 Chat ID: `{chat_id}`\n\n"
+        f"🤖 Bot by @VanzzSkyyID\n"
+        f"🛒 Cheapest All Apps: @VanzShopBot"
+    )
 
-
-def unknown(update: Update, context: CallbackContext):
-    update.message.reply_text(
-        "I only support /start and /id.\n"
-        "Use /id to check IDs." + CREDIT_TEXT
+    await query.edit_message_text(
+        text=text,
+        parse_mode="Markdown"
     )
 
 
-# ==========================
-# MAIN
-# ==========================
+# ==============================
+#  MAIN
+# ==============================
 
-def main():
-    updater = Updater(BOT_TOKEN, use_context=True)
-    dp = updater.dispatcher
+async def main():
+    app = ApplicationBuilder().token("YOUR_BOT_TOKEN").build()
 
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("id", id_command))
+    # /start
+    app.add_handler(CommandHandler("start", send_welcome))
 
-    # Optional: reply something if user types random command
-    dp.add_handler(MessageHandler(Filters.command, unknown))
+    # kalau user chat apa saja → tetap kirim info ID
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, send_welcome))
 
-    print("✅ ID Checker Bot is running...")
-    updater.start_polling()
-    updater.idle()
+    # button callback
+    app.add_handler(MessageHandler(filters.COMMAND, send_welcome))
+    app.add_handler(telegram.ext.CallbackQueryHandler(callback_button))
 
+    print("BOT READY...")
+    await app.run_polling()
 
-if __name__ == "__main__":
-    main()
+import asyncio
+asyncio.run(main())
