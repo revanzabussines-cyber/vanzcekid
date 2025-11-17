@@ -9,13 +9,17 @@ from telegram.ext import (
     filters,
 )
 
-TOKEN = os.getenv("BOT_TOKEN")  # set di Railway
+TOKEN = os.getenv("BOT_TOKEN")
 
-# ========== RESPON WELCOME / INFO ID ==========
-async def send_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+# ========================
+# START COMMAND
+# ========================
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
 
+    name = user.first_name
     user_id = user.id
     chat_id = chat.id
 
@@ -29,59 +33,67 @@ async def send_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     text = (
-        f"👋 **Welcome!**\n\n"
+        f"👋 Halo **{name}**!\n\n"
         f"👤 User ID: `{user_id}`\n"
         f"💬 Chat ID: `{chat_id}`\n\n"
         f"🤖 Bot by **@VanzzSkyyID**\n"
-        f"🛒 Cheapest All Apps: **@VanzShopBot**"
+        f"🛒 Cheapest All Apps → **@VanzShopBot**"
     )
 
-    # kadang update.message bisa None (misal dari callback), jadi dicek dulu
     if update.message:
         await update.message.reply_markdown(
             text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
 
-# ========== CALLBACK TOMBOL ==========
-async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ========================
+# CALLBACK BUTTON
+# ========================
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     user = query.from_user
+    name = user.first_name
     user_id = user.id
     chat_id = query.message.chat.id
 
     text = (
-        f"🔍 **Cek ID Berhasil!**\n\n"
+        f"🔍 **ID Detail untuk {name}:**\n\n"
         f"👤 User ID: `{user_id}`\n"
         f"💬 Chat ID: `{chat_id}`\n\n"
         f"🤖 Bot by @VanzzSkyyID\n"
-        f"🛒 Cheapest All Apps: @VanzShopBot"
+        f"🛒 Cheapest All Apps → @VanzShopBot"
     )
 
-    await query.edit_message_text(
-        text=text,
-        parse_mode="Markdown"
-    )
+    await query.edit_message_text(text, parse_mode="Markdown")
 
 
-# ========== MAIN ==========
+# ========================
+# AUTO RESPON CHAT APA SAJA
+# ========================
+async def auto_show_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await start(update, context)
+
+
+# ========================
+# MAIN APP
+# ========================
 def main():
     if not TOKEN:
-        raise RuntimeError("ENV BOT_TOKEN belum di-set di Railway!")
+        raise RuntimeError("BOT_TOKEN belum di-set di Railway")
 
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # /start → kirim ID + tombol
-    app.add_handler(CommandHandler("start", send_welcome))
+    # command
+    app.add_handler(CommandHandler("start", start))
 
-    # chat teks apa pun (non-command) → kirim ID + tombol juga
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, send_welcome))
+    # tombol callback
+    app.add_handler(CallbackQueryHandler(button))
 
-    # handler buat tombol inline
-    app.add_handler(CallbackQueryHandler(button_callback))
+    # chat apa pun → tampilkan info
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, auto_show_id))
 
     print("BOT RUNNING...")
     app.run_polling()
